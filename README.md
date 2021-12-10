@@ -21,15 +21,12 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-1. Install [python]()
+1. Install [python](https://www.python.org/downloads/)
 2. Install [simPy(3.0.13)](https://simpy.readthedocs.io/en/3.0.13/index.html)
 
 ### Run Simulation
 
-1. Clone this repo: `git clone `
+1. Clone this repo: `git clone https://github.com/JJLIN1024/PCS_final_project.git`
 2. Change into the repo directory: `cd PCS_final_project`
-3. Run simulation:
-   ```bash
-     python mmcc.py
-   ```
-    ```
+3. Run simulation:`python mmcc.py`
+    
