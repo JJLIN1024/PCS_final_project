@@ -4,8 +4,6 @@
 
 - [Overview](#overview)
 - [Getting Started](#getting-started)
-  - [Run Node Server](#run-node-server)
-  - [Run Simulation](#run-simulation)
 
 ## Overview
 
