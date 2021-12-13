@@ -22,7 +22,8 @@ To get a local copy up and running follow these simple steps.
 ### Prerequisites
 
 1. Install [python](https://www.python.org/downloads/)
-2. Install [simPy(3.0.13)](https://simpy.readthedocs.io/en/3.0.13/index.html)
+2. Install [numpy](https://numpy.org/) & [pandas](https://pandas.pydata.org/) using pip: `pip install numpy pandas`
+3. Install [simPy(3.0.13)](https://simpy.readthedocs.io/en/3.0.13/index.html)
 
 ### Run Simulation
 
