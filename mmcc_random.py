@@ -1,9 +1,8 @@
-""" mmcc_random.py
+""" mmcc.py
 
 Simulate the result proposed in "Dynamic priority queueing of handoff requests in PCS".
 Paper link: https://ieeexplore.ieee.org/document/936959
 
-Difference with mmcc.py is that, service rate for new call and handoff call is no longer constant as in mmcc.py.
 """
 
 import simpy
@@ -20,6 +19,7 @@ Ex: arrival rate(lambda) = 1/6 (call/sec), mean call duration = 180(sec)
 then the offered load is 1/6 * 180 = 30(Erlangs), the equation is basically Little's Formula.
 """
 RANDOM_SEED = 42
+
 MEAN_MESSAGE_DURATION = 180
 # LAMBDA_ARRIVAL =  0.001                                         # Total arrival rate (calls / sec)
 HANDOFF_TRAFFIC_RATIO = 0.5                                 # handoff_traffic / total arrival traffic
@@ -145,7 +145,8 @@ def Call(env, BST, callType, name, system_performace_data):
             result = yield req | env.timeout(0)
             if req in result:
                 LOG(f"{name} start: get a channel, being served...")
-                yield env.timeout(CHANNEL_HOLDING_T)
+                t = random.expovariate(1/CHANNEL_HOLDING_T)
+                yield env.timeout(t)
                 LOG(f"{name} finish: leaving system...")
             else:
                 system_performace_data['BN_call'] += 1
@@ -157,7 +158,8 @@ def Call(env, BST, callType, name, system_performace_data):
             result = yield req | env.timeout(0)
             if req in result:
                 LOG(f"{name} start: get a channel, being served...")
-                yield env.timeout(HANDOFF_HOLDING_T)
+                t = random.expovariate(1/HANDOFF_HOLDING_T)
+                yield env.timeout(t)
                 LOG(f"{name} finish: leaving system...")
             else:
                 num1 = CountQueueLength(BST.queue)
@@ -170,7 +172,8 @@ def Call(env, BST, callType, name, system_performace_data):
                         result11 = yield req11 | env.timeout(DWELL_TIME_1)
                         if req11 in result11:
                             LOG(f"{name}: Q1 get served")
-                            yield env.timeout(HANDOFF_HOLDING_T)
+                            t = random.expovariate(1/HANDOFF_HOLDING_T)
+                            yield env.timeout(t)
                         else:
                             system_performace_data['DP1_call'] += 1
                             system_performace_data['BH_call'] += 1
@@ -183,7 +186,8 @@ def Call(env, BST, callType, name, system_performace_data):
             result = yield req | env.timeout(0)
             if req in result:
                 LOG(f"{name} start: get a channel")
-                yield env.timeout(HANDOFF_HOLDING_T)
+                t = random.expovariate(1/HANDOFF_HOLDING_T)
+                yield env.timeout(t)
                 LOG(f"{name} finish: exit now")
             else:
                 num = CountQueueLength(BST.queue)
@@ -206,7 +210,9 @@ def Call(env, BST, callType, name, system_performace_data):
                                     rrr = yield req111 | env.timeout(DWELL_TIME_2 - TRANSITION_TIME)
                                     if req111 in rrr:
                                         LOG(f"{name} start: p2 to p1 get channel")
-                                        yield env.timeout(HANDOFF_HOLDING_T)
+                                        t = random.expovariate(
+                                            1/HANDOFF_HOLDING_T)
+                                        yield env.timeout(t)
                                         LOG(f"{name} finish: p2 to p1 finish")
                                     else:
                                         system_performace_data['DP2_call'] += 1
