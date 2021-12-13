@@ -29,5 +29,5 @@ To get a local copy up and running follow these simple steps.
 
 1. Clone this repo: `git clone https://github.com/JJLIN1024/PCS_final_project.git`
 2. Change into the repo directory: `cd PCS_final_project`
-3. Run simulation:`python mmcc.py`
+3. Use python(version >= 3.6) to run simulation:`python mmcc.py`
     
