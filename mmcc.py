@@ -24,8 +24,8 @@ HANDOFF_TRAFFIC_RATIO = 0.5                                 # handoff_traffic / 
 PRIORITY_1_RATIO = 0.5                                      # number of priority one handoff call / total handoff call
 CHANNEL_HOLDING_T = 60                                      # mean service time(time unit = second) for call in BST
 HANDOFF_HOLDING_T = 30                                      # mean service time(time unit = second) for call queued in Q1, Q2
-DWELL_TIME_1 = 7.5                                          # mean waiting time(time unit = second) before call in Q1 to be dropped
-DWELL_TIME_2 = 12.5                                         # mean waiting time(time unit = second) before call in Q2 to be dropped
+DWELL_TIME_1 = 12.5                                       # mean waiting time(time unit = second) before call in Q1 to be dropped
+DWELL_TIME_2 = 17.5                                         # mean waiting time(time unit = second) before call in Q2 to be dropped
 TRANSITION_TIME = 6                                         # mean waiting time(time unit = second) before call in Q2 to be transit from Q2 to Q1
 N_CALLS = 10000                                             # number of new calls to simulate, simulation will stop either there's no more calls or simulation time ends.
 N_Channels = 30                                             # number of channels in the BST(cell)
