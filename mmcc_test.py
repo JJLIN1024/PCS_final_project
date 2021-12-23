@@ -23,7 +23,7 @@ HANDOFF_HOLDING_T = 9/5                                     # mean service time(
 DWELL_TIME_1 = 8                                         # mean waiting time(time unit = second) before call in Q1 to be dropped
 DWELL_TIME_2 = 6                                         # mean waiting time(time unit = second) before call in Q2 to be dropped
 TRANSITION_TIME =  12                                        # mean waiting time(time unit = second) before call in Q2 to be transit from Q2 to Q1
-N_CALLS = 50000                                             # number of new calls to simulate, simulation will stop either there's no more calls or simulation time ends.
+N_CALLS = 10000                                         # number of new calls to simulate, simulation will stop either there's no more calls or simulation time ends.
 N_Channels = 2                                             # number of channels in the BST(cell)
 Q1_SIZE = 1                                                 # number of calls that can be queued in Q1
 Q2_SIZE = 1                                                 # number of calls that can be queued in Q2
@@ -34,7 +34,8 @@ def main():
     
     system_performace_data = {'N_call':0, 'H_call':0, 'BN_call': 0, 'BH_call': 0,
                                 'P1_call': 0, 'P2_call':0, 'DP1_call':0, 'DP2_call':0, 'BP1_call':0, 'BP2_call':0,
-                                (0,0,0):0, (1,0,0):0, (2,0,0):0, (2,1,0):0, (2,0,1):0, (2,1,1):0,}
+                                (0,0,0):0, (1,0,0):0, (2,0,0):0, (2,1,0):0, (2,0,1):0, (2,1,1):0,
+                                'P1_failed':0, 'P2_failed':0}
 
     random.seed(RANDOM_SEED)
     env = simpy.Environment()
@@ -45,19 +46,21 @@ def main():
     env.process(callSource)
     env.run()
 
-    print(f"New call block rate: {system_performace_data['BN_call'] / system_performace_data['N_call']}")
-    print(f"Handoff call block rate: {system_performace_data['BH_call'] / system_performace_data['H_call']}")
-    print(f"Priority 1 call block rate: {system_performace_data['BP1_call'] / system_performace_data['P1_call']}")
-    print(f"Priority 2 call block rate: {system_performace_data['BP2_call'] / system_performace_data['P2_call']}")
-    print(f"Priority 1 call drop rate: {system_performace_data['DP1_call'] / system_performace_data['P1_call']}")
-    print(f"Priority 2 call drop rate: {system_performace_data['DP2_call'] / system_performace_data['P2_call']}")
-    print(f"new: 1 : 2 = {system_performace_data['N_call']} : {system_performace_data['P1_call']}: {system_performace_data['P2_call']}")
-    print(f"(0,0,0) ratio: {system_performace_data[(0,0,0)] / N_CALLS}")
-    print(f"(1,0,0) ratio: {system_performace_data[(1,0,0)] / N_CALLS}")
-    print(f"(2,0,0) ratio: {system_performace_data[(2,0,0)] / N_CALLS}")
-    print(f"(2,0,1) ratio: {system_performace_data[(2,0,1)] / N_CALLS}")
-    print(f"(2,1,0) ratio: {system_performace_data[(2,1,0)] / N_CALLS}")
-    print(f"(2,1,1) ratio: {system_performace_data[(2,1,1)] / N_CALLS}")
+    print(f"Priority 1 call block rate: {(system_performace_data['P1_failed'])/system_performace_data['H_call'] }")
+
+    # print(f"New call block rate: {system_performace_data['BN_call'] / system_performace_data['N_call']}")
+    # print(f"Handoff call block rate: {system_performace_data['BH_call'] / system_performace_data['H_call']}")
+    # print(f"Priority 1 call block rate: {system_performace_data['BP1_call'] / system_performace_data['P1_call']}")
+    # print(f"Priority 2 call block rate: {system_performace_data['BP2_call'] / system_performace_data['P2_call']}")
+    # print(f"Priority 1 call drop rate: {system_performace_data['DP1_call'] / system_performace_data['P1_call']}")
+    # print(f"Priority 2 call drop rate: {system_performace_data['DP2_call'] / system_performace_data['P2_call']}")
+    # print(f"new: H: 1 : 2 = {system_performace_data['N_call']} : {system_performace_data['H_call']}: {system_performace_data['P1_call']}: {system_performace_data['P2_call']}")
+    # print(f"(0,0,0) ratio: {system_performace_data[(0,0,0)] / N_CALLS}")
+    # print(f"(1,0,0) ratio: {system_performace_data[(1,0,0)] / N_CALLS}")
+    # print(f"(2,0,0) ratio: {system_performace_data[(2,0,0)] / N_CALLS}")
+    # print(f"(2,0,1) ratio: {system_performace_data[(2,0,1)] / N_CALLS}")
+    # print(f"(2,1,0) ratio: {system_performace_data[(2,1,0)] / N_CALLS}")
+    # print(f"(2,1,1) ratio: {system_performace_data[(2,1,1)] / N_CALLS}")
 
 # Model components 
 def CallSource(env, N_CALLS, LAMBD, HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST, system_performace_data):
@@ -68,7 +71,7 @@ def CallSource(env, N_CALLS, LAMBD, HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST
     """
     for i in range(N_CALLS):
         p1 = random.random()
-        if p1 >= HANDOFF_TRAFFIC_RATIO:
+        if p1 > HANDOFF_TRAFFIC_RATIO:
             call = Call(env, BST, 0, f"new call       , ID = {i}", system_performace_data)
             env.process(call)
         else:
@@ -98,14 +101,34 @@ def Call(env, BST, callType, name, system_performace_data):
     queue_type = 0 => dynamic queue(Q1, Q2).
     queue_type = 1 => FCFS queue(Q1, Q2), which means there is no dynamic flow from Q2 to Q1.
     """
+
     k = BST.count
     m1 = 0
     m2 = 0
+
+
+    users_delay = []
+    for user in BST.users:
+        users_delay.append(user.proc.target._delay)
+
     for request in BST.queue:
+
+        timeout = request.proc.target._events[1]._delay
+        flag = False
+        for d in users_delay:
+            if d < timeout:
+                flag = True
+                break
+        
         if request.priority == 0:
             m1 += 1
+            if not flag:
+                system_performace_data['P1_failed'] += 1
         if request.priority == 1:
             m2 += 1
+            if not flag:
+                system_performace_data['P2_failed'] += 1
+
     system_performace_data[(k , m1, m2)] += 1
 
     def LOG(message):
@@ -114,6 +137,7 @@ def Call(env, BST, callType, name, system_performace_data):
             print(f"{time: 2f}: {message}")
 
     if callType == 0:  
+        LOG(f"{name} Incoming")
         system_performace_data['N_call'] += 1
 
         req = BST.request(priority=3)
@@ -132,11 +156,12 @@ def Call(env, BST, callType, name, system_performace_data):
             LOG(f"{name} get blocked, leaving system...")
 
     elif callType == 1:  
-
+        LOG(f"{name} Incoming")
         # priority 1 handoff call
         system_performace_data['H_call'] += 1
         system_performace_data['P1_call'] += 1
         total_service_time = random.expovariate(HANDOFF_HOLDING_T)
+        wait_time = random.expovariate(DWELL_TIME_1)
         # Request a channel with the highest priority
         req = BST.request(priority=0)
         # timeout immediately, no patience
@@ -152,27 +177,21 @@ def Call(env, BST, callType, name, system_performace_data):
             
             Q1Full = CountQueueLength(BST.queue, request_type = 1)
             if Q1Full:
-                req.cancel()
                 system_performace_data['BH_call'] += 1
                 system_performace_data['BP1_call'] += 1
+                req.cancel()
                 LOG(f"{name} Q1 full, blocked")
             else:
                 # priority 1 call waits in Q1 for DWELL_TIME_1
                 # If still not get served, leaves Q1(dropped)
-                t = random.expovariate(DWELL_TIME_1)
-                # t_before = env.now
-                yield req | env.timeout(t)
+                
+                yield req | env.timeout(wait_time)
                 if req.triggered:
                     LOG(f"{name} start: get a channel(from Q1), being served...")
-                    # t_after = env.now                  
-                    # time_spent_in_queue = t_after - t_before
-                    # service_time_left = max(total_service_time - time_spent_in_queue, 0)
-                    # yield env.timeout(service_time_left)
+                    
                     yield env.timeout(total_service_time)
                     LOG(f"{name} finish: leaving system...")
                     BST.release(req)
-
-    
                 else:
                     # Pass Dwell time, call dropped
                     system_performace_data['DP1_call'] += 1
@@ -181,7 +200,7 @@ def Call(env, BST, callType, name, system_performace_data):
                     LOG(f"{name} Q1 get dropped, leaving system...")
 
     elif callType == 2:  
-
+        LOG(f"{name} Incoming")
         wait_time = random.expovariate(DWELL_TIME_2)
         transition_time = random.expovariate(TRANSITION_TIME)
         service_time = random.expovariate(HANDOFF_HOLDING_T)
