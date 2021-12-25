@@ -1,8 +1,8 @@
 """ mmcc_test.py
 Perform model checking for mmcc.py by running code on a small test set, and verify model correctness
 by compare the program outcome with the math result computed by hand using 2-class markov chain model.
-
 The test set contains only 2 channels, and the queue size for Q1 & Q2 are both 1.
+The state diagram, global balance equation, and steady state probability is presented in: https://hackmd.io/Wen6lG5RTxmwrPxWDrCUKw
 """
 
 import simpy
@@ -12,63 +12,68 @@ import numpy as np
 import pandas as pd
 
 # Global Parameter
+RANDOM_SEED = 3                                               # for result's reproducibility
+HANDOFF_TRAFFIC_RATIO = 0.5                                   # handoff_traffic / total arrival traffic
+PRIORITY_1_RATIO = 0.5                                        # number of priority one handoff call / total handoff call
+LAMBD = 4                                                     # input call arrival rate (call / minute)
+NEW_CALL_SERVICE_RATE = 9/5                                   # mean service time for new call (call / minute)
+HANDOFF_CALL_SERVICE_RATE = 9/5                               # mean service time for handoff call (call / minute)
+P1CALL_DROP_RATE = 8                                          # mean drop rate for priority one call (call / minute)
+P2CALL_DROP_RATE = 6                                          # mean drop rate for priority two call (call / minute)
+TRANSITION_RATE = 12                                          # mean transition rate for priority two call to transit into priority one call
+N_Channels = 2                                                # number of channels in the BST(cell)
+Q1_SIZE = 1                                                   # number of priority one call that can be queued in Q1
+Q2_SIZE = 1                                                   # number of priority two call that can be queued in Q2
+N_CALLS = 10000                                               # number of calls to simulate
+TRACING = False                                               # Simulation Logging
 
-MEAN_MESSAGE_DURATION = 180                                 # unit: second    
-LAMBD = 4
-RANDOM_SEED = 3                                             # For result's reproducibility
-HANDOFF_TRAFFIC_RATIO = 0.5                                 # handoff_traffic / total arrival traffic
-PRIORITY_1_RATIO = 0.5                                      # number of priority one handoff call / total handoff call
-NEWCALL_HOLDING_T = 9/5                                    # mean service time(time unit = second) for call in BST
-HANDOFF_HOLDING_T = 9/5                                     # mean service time(time unit = second) for call queued in Q1, Q2
-DWELL_TIME_1 = 8                                         # mean waiting time(time unit = second) before call in Q1 to be dropped
-DWELL_TIME_2 = 6                                         # mean waiting time(time unit = second) before call in Q2 to be dropped
-TRANSITION_TIME =  12                                        # mean waiting time(time unit = second) before call in Q2 to be transit from Q2 to Q1
-N_CALLS = 10000                                         # number of new calls to simulate, simulation will stop either there's no more calls or simulation time ends.
-N_Channels = 2                                             # number of channels in the BST(cell)
-Q1_SIZE = 1                                                 # number of calls that can be queued in Q1
-Q2_SIZE = 1                                                 # number of calls that can be queued in Q2
-TRACING = False                                              # Logging
+"""
+Program Introduction:
+Simulation runs in a environment, Callsource generates calls to the BST, 
+which is handled in Call function, depends on the type of call, Call function
+is will put itself into sleep(yield statement) to simulate the call being served by BST,
+and will wake itself up after the service is done(call ends)
+
+"""
 
 
 def main():
     
-    system_performace_data = {'N_call':0, 'H_call':0, 'BN_call': 0, 'BH_call': 0,
-                                'P1_call': 0, 'P2_call':0, 'DP1_call':0, 'DP2_call':0, 'BP1_call':0, 'BP2_call':0,
-                                (0,0,0):0, (1,0,0):0, (2,0,0):0, (2,1,0):0, (2,0,1):0, (2,1,1):0,
-                                'P1_failed':0, 'P2_failed':0}
+    system_performace_data = {'N_call':0, 'H_call':0, 'BN_call': 0, 'BH_call': 0, 'P1_call': 0, 
+                            'P2_call':0, 'BP1_call': 0, 'BP2_call': 0,
+                            (0,0,0):0, (1,0,0):0, (2,0,0):0, (2,1,0):0, (2,0,1):0, (2,1,1):0}
 
     random.seed(RANDOM_SEED)
     env = simpy.Environment()
     BST = simpy.PriorityResource(env, capacity=N_Channels)
-    callSource = CallSource(env, N_CALLS, LAMBD, 
-                            HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST, system_performace_data)
-    
+    callSource = CallSource(env, N_CALLS, LAMBD, HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST, system_performace_data)
     env.process(callSource)
     env.run()
 
-    print(f"Priority 1 call block rate: {(system_performace_data['P1_failed'])/system_performace_data['H_call'] }")
-
-    # print(f"New call block rate: {system_performace_data['BN_call'] / system_performace_data['N_call']}")
-    # print(f"Handoff call block rate: {system_performace_data['BH_call'] / system_performace_data['H_call']}")
-    # print(f"Priority 1 call block rate: {system_performace_data['BP1_call'] / system_performace_data['P1_call']}")
-    # print(f"Priority 2 call block rate: {system_performace_data['BP2_call'] / system_performace_data['P2_call']}")
-    # print(f"Priority 1 call drop rate: {system_performace_data['DP1_call'] / system_performace_data['P1_call']}")
-    # print(f"Priority 2 call drop rate: {system_performace_data['DP2_call'] / system_performace_data['P2_call']}")
-    # print(f"new: H: 1 : 2 = {system_performace_data['N_call']} : {system_performace_data['H_call']}: {system_performace_data['P1_call']}: {system_performace_data['P2_call']}")
-    # print(f"(0,0,0) ratio: {system_performace_data[(0,0,0)] / N_CALLS}")
-    # print(f"(1,0,0) ratio: {system_performace_data[(1,0,0)] / N_CALLS}")
-    # print(f"(2,0,0) ratio: {system_performace_data[(2,0,0)] / N_CALLS}")
-    # print(f"(2,0,1) ratio: {system_performace_data[(2,0,1)] / N_CALLS}")
-    # print(f"(2,1,0) ratio: {system_performace_data[(2,1,0)] / N_CALLS}")
-    # print(f"(2,1,1) ratio: {system_performace_data[(2,1,1)] / N_CALLS}")
+    print(f"Steady state probability: ")
+    print(f"(0,0,0): {system_performace_data[(0,0,0)] / N_CALLS}")
+    print(f"(1,0,0): {system_performace_data[(1,0,0)] / N_CALLS}")
+    print(f"(2,0,0): {system_performace_data[(2,0,0)] / N_CALLS}")
+    print(f"(2,0,1): {system_performace_data[(2,0,1)] / N_CALLS}")
+    print(f"(2,1,0): {system_performace_data[(2,1,0)] / N_CALLS}")
+    print(f"(2,1,1): {system_performace_data[(2,1,1)] / N_CALLS}")
+    print("------------------------------------\n")
+    print("System average statistics: ")
+    print(f"New call block rate: {system_performace_data['BN_call'] / system_performace_data['N_call']}")
+    print(f"Priority 1 call block rate: {(system_performace_data['BP1_call'])/system_performace_data['H_call'] }")
+    print(f"Priority 2 call block rate: {(system_performace_data['BP2_call'])/system_performace_data['H_call'] }")
+    print(f"Handoff call block rate: {PRIORITY_1_RATIO * (system_performace_data['BP1_call'])/system_performace_data['H_call'] + (1 - PRIORITY_1_RATIO) * (system_performace_data['BP2_call'])/system_performace_data['H_call']}")
+    print("------------------------------------\n")
+    print("Statistics validation: ")
 
 # Model components 
 def CallSource(env, N_CALLS, LAMBD, HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST, system_performace_data):
     """ 
-    Generates a sequence of new calls depends on probability: HANDOFF_TRAFFIC_RATIO & PRIORITY_1_RATIO,
+    Generates a sequence of new calls depends on HANDOFF_TRAFFIC_RATIO & PRIORITY_1_RATIO,
     In this case, HANDOFF_TRAFFIC_RATIO = 1/2, and PRIORITY_1_RATIO = 1/2, which means the handoff traffic is roughly  
-    50% of the total incomming call traffic, and among the total handoff traffic, calls that have priority 1 is roughly 50%. 
+    50% of the total in-comming call traffic, and among the total handoff traffic, calls that have priority 1 is roughly 50%. 
     """
+
     for i in range(N_CALLS):
         p1 = random.random()
         if p1 > HANDOFF_TRAFFIC_RATIO:
@@ -81,18 +86,10 @@ def CallSource(env, N_CALLS, LAMBD, HANDOFF_TRAFFIC_RATIO, PRIORITY_1_RATIO, BST
                 env.process(call)
             else:
                 call = Call(env, BST, 1, f"Priority 1 call, ID = {i}", system_performace_data)
-                
                 env.process(call)
-
-        # t is the inter-arrival time for arrival rate = Lambda
-        # We suspend the Call process, resume it after time period of length t to mimic incomming Poisson arrival calls.
+        # t is the interarrival time, given the arrival rate is LAMBD
         t = random.expovariate(LAMBD)
         yield env.timeout(t)
-
-def print_stats(res):
-    print(f'{res.count} of {res.capacity} slots are allocated.')
-    print(f'  Users: {res.users}')
-    print(f'  Queued events: {res.queue}')
 
 def Call(env, BST, callType, name, system_performace_data):
     """
@@ -105,7 +102,6 @@ def Call(env, BST, callType, name, system_performace_data):
     k = BST.count
     m1 = 0
     m2 = 0
-
 
     users_delay = []
     for user in BST.users:
@@ -169,6 +165,7 @@ def Call(env, BST, callType, name, system_performace_data):
         if req.triggered:
             
             LOG(f"{name} start: get a channel, being served...")
+            
             # Suspend this process for time period of length = mean service time for handoff calls
             yield env.timeout(total_service_time)
             BST.release(req)
@@ -188,7 +185,7 @@ def Call(env, BST, callType, name, system_performace_data):
                 yield req | env.timeout(wait_time)
                 if req.triggered:
                     LOG(f"{name} start: get a channel(from Q1), being served...")
-                    
+                    system_performace_data['P1_served'] += 1
                     yield env.timeout(total_service_time)
                     LOG(f"{name} finish: leaving system...")
                     BST.release(req)
@@ -253,6 +250,7 @@ def Call(env, BST, callType, name, system_performace_data):
                         yield new_req | env.timeout(t)
                         if new_req.triggered:
                             LOG(f"{name} start: get a channel(from Q1), being served...")
+                            system_performace_data['P1_served'] += 1
                             t_after = env.now                  
                             time_spent_in_queue = t_after - t0
                             service_time_left = max(service_time - time_spent_in_queue, 0)
@@ -288,19 +286,24 @@ def Call(env, BST, callType, name, system_performace_data):
         LOG("Something went wrong, unknown type of call.")
 
 
-# This util function counts how many reqeust currently holding onto resourse(BST channels), and return whether the desire queue is full.
-# Ex: currently all K channels are full, then a priority 1 handoff call arrived, then p1Count will equal 1, return False.
-# If currently all K channels are full, and the sixth priority 1 handoff call arrived, then p1Count will equal 5, return False.
-def CountQueueLength(resourceQueue, request_type):
-     
-    p1Count = p2Count = 0
+# Utils
+def print_stats(resource):
+    print(f'{resource.count} of {resource.capacity} channels are allocated.')
+    print(f'  Users: {resource.users}')
+    print(f'  Queued events: {resource.queue}')
 
+"""
+This util function counts how many request currently holding onto resource(BST channels), 
+and return whether the desire queue is full. Ex: currently all K channels are full, then a priority 1 
+handoff call arrived, made a request to claim resource, then p1Count will equal 2(include himself), return False.
+"""
+def CountQueueLength(resourceQueue, request_type):
+    p1Count = p2Count = 0
     for request in resourceQueue:
         if request.priority == 0:
             p1Count += 1
         if request.priority == 1:
             p2Count += 1
-
     if request_type == 1:
         return p1Count > Q1_SIZE
     elif request_type == 2:
