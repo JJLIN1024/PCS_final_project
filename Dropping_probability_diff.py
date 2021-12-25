@@ -8,7 +8,7 @@ from Simulation import Call
 
 # Variable, for lambda in (40, 50), the blocking probability 
 # is roughly 20% when handoff traffic is about 50% of total traffic
-LAMBD = 120
+LAMBD = 50
 
 # Constant
 MEAN_MESSAGE_DURATION = 3
